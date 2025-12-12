@@ -289,10 +289,6 @@ public class ProdutoServiceImpl implements ProdutoService {
             throw new IllegalArgumentException("Código do produto é obrigatório");
         }
         
-        if (produto.getCategoria() == null || produto.getCategoria().trim().isEmpty()) {
-            throw new IllegalArgumentException("Categoria do produto é obrigatória");
-        }
-        
         if (produto.getQuantidadeTotal() == null || produto.getQuantidadeTotal() < 0) {
             throw new IllegalArgumentException("Quantidade total deve ser maior ou igual a zero");
         }
@@ -324,3 +320,4 @@ public class ProdutoServiceImpl implements ProdutoService {
         }
     }
 }
+

@@ -29,9 +29,10 @@ public class Produto {
     @Column(name = "numero_serie", length = 100)
     private String numeroSerie; // Número de série do equipamento
     
-    @NotBlank(message = "Categoria é obrigatória")
-    @Column(nullable = false, length = 50)
-    private String categoria; // HARDWARE, SOFTWARE, PERIFERICO, COMPONENTE
+    // ALTERAÇÃO AQUI: Agora é relação ManyToOne, não String
+    @ManyToOne
+    @JoinColumn(name = "categoria_id", nullable = false)
+    private Categoria categoria; // Mudou de String para Categoria
     
     @Column(name = "marca", length = 50)
     private String marca; // Dell, HP, Logitech, Microsoft, etc.
@@ -76,12 +77,12 @@ public class Produto {
         this.dataCriacao = LocalDateTime.now();
     }
     
-    // Construtor simplificado para inventário
-    public Produto(String nome, String codigo, String categoria) {
+    // Construtor simplificado para inventário (ATUALIZADO)
+    public Produto(String nome, String codigo, Categoria categoria) { // Mudou aqui
         this();
         this.nome = nome;
         this.codigo = codigo;
-        this.categoria = categoria;
+        this.categoria = categoria; // Agora recebe objeto Categoria
     }
     
     // Método executado antes de persistir
@@ -100,7 +101,7 @@ public class Produto {
         dataAtualizacao = LocalDateTime.now();
     }
     
-    // Getters e Setters (pode usar Lombok @Data se preferir)
+    // Getters e Setters (ATUALIZE O GETTER/SETTER DE CATEGORIA)
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     
@@ -116,8 +117,9 @@ public class Produto {
     public String getNumeroSerie() { return numeroSerie; }
     public void setNumeroSerie(String numeroSerie) { this.numeroSerie = numeroSerie; }
     
-    public String getCategoria() { return categoria; }
-    public void setCategoria(String categoria) { this.categoria = categoria; }
+    // GETTER E SETTER ATUALIZADOS PARA CATEGORIA
+    public Categoria getCategoria() { return categoria; }
+    public void setCategoria(Categoria categoria) { this.categoria = categoria; }
     
     public String getMarca() { return marca; }
     public void setMarca(String marca) { this.marca = marca; }
