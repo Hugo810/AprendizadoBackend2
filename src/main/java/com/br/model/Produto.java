@@ -34,8 +34,9 @@ public class Produto {
     @JoinColumn(name = "categoria_id", nullable = false)
     private Categoria categoria; // Mudou de String para Categoria
     
-    @Column(name = "marca", length = 50)
-    private String marca; // Dell, HP, Logitech, Microsoft, etc.
+    @ManyToOne
+    @JoinColumn(name = "marca_id")
+    private Marca marca;
     
     @Column(name = "modelo", length = 100)
     private String modelo; // Inspiron 15, MX Master 3, etc.
@@ -48,8 +49,9 @@ public class Produto {
     @Column(name = "quantidade_disponivel", nullable = false)
     private Integer quantidadeDisponivel = 1; // Quantos estão disponíveis para empréstimo
     
-    @Column(name = "localizacao", length = 100)
-    private String localizacao; // Estante A, Almoxarifado, Sala TI
+    @ManyToOne
+    @JoinColumn(name = "localizacao_id")
+    private Localizacao localizacao;
     
     @Column(name = "estado_conservacao", length = 20)
     private String estadoConservacao; // NOVO, BOM, REGULAR, RUIM
@@ -121,8 +123,8 @@ public class Produto {
     public Categoria getCategoria() { return categoria; }
     public void setCategoria(Categoria categoria) { this.categoria = categoria; }
     
-    public String getMarca() { return marca; }
-    public void setMarca(String marca) { this.marca = marca; }
+    public Marca getMarca() { return marca; }
+    public void setMarca(Marca marca) { this.marca = marca; }
     
     public String getModelo() { return modelo; }
     public void setModelo(String modelo) { this.modelo = modelo; }
@@ -137,8 +139,8 @@ public class Produto {
         this.quantidadeDisponivel = quantidadeDisponivel; 
     }
     
-    public String getLocalizacao() { return localizacao; }
-    public void setLocalizacao(String localizacao) { this.localizacao = localizacao; }
+    public Localizacao getLocalizacao() { return localizacao; }
+    public void setLocalizacao(Localizacao localizacao) { this.localizacao = localizacao; }
     
     public String getEstadoConservacao() { return estadoConservacao; }
     public void setEstadoConservacao(String estadoConservacao) { 

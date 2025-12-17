@@ -2,8 +2,12 @@ package com.br.controller;
 
 import com.br.model.Produto;
 import com.br.model.Categoria;
+import com.br.model.Marca;
+import com.br.model.Localizacao;
 import com.br.service.ProdutoService;
 import com.br.service.CategoriaService;
+import com.br.service.MarcaService;
+import com.br.service.LocalizacaoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +28,12 @@ public class ProdutoController {
     @Autowired
     private CategoriaService categoriaService;
     
+    @Autowired
+    private MarcaService marcaService;
+    
+    @Autowired
+    private LocalizacaoService localizacaoService;
+    
     // ============ CRUD BÁSICO ============
     
     @PostMapping
@@ -35,39 +45,54 @@ public class ProdutoController {
                                  " (tipo: " + (entry.getValue() != null ? entry.getValue().getClass().getSimpleName() : "null") + ")");
             }
             
+            // Extrai campos básicos
             String nome = (String) requestBody.get("nome");
             String codigo = (String) requestBody.get("codigo");
             Object categoriaIdObj = requestBody.get("categoriaId");
+            Object marcaIdObj = requestBody.get("marcaId");
+            Object localizacaoIdObj = requestBody.get("localizacaoId");
             
             if (categoriaIdObj == null) {
                 return ResponseEntity.badRequest().body(Map.of("erro", "categoriaId é obrigatório"));
             }
             
-            Long categoriaId = null;
-            if (categoriaIdObj instanceof Integer) {
-                categoriaId = ((Integer) categoriaIdObj).longValue();
-            } else if (categoriaIdObj instanceof Long) {
-                categoriaId = (Long) categoriaIdObj;
-            } else if (categoriaIdObj instanceof String) {
-                try {
-                    categoriaId = Long.parseLong((String) categoriaIdObj);
-                } catch (NumberFormatException e) {
-                    return ResponseEntity.badRequest().body(Map.of("erro", "categoriaId inválido"));
-                }
+            // Converte IDs
+            Long categoriaId = converterParaLong(categoriaIdObj, "categoriaId");
+            if (categoriaId == null) {
+                return ResponseEntity.badRequest().body(Map.of("erro", "categoriaId inválido"));
             }
             
+            Long marcaId = converterParaLong(marcaIdObj, "marcaId");
+            Long localizacaoId = converterParaLong(localizacaoIdObj, "localizacaoId");
+            
+            // Busca categoria
             Categoria categoria = categoriaService.findById(categoriaId)
                 .orElseThrow(() -> new IllegalArgumentException("Categoria não encontrada"));
             
+            // Busca marca (se fornecida)
+            Marca marca = null;
+            if (marcaId != null) {
+                marca = marcaService.findById(marcaId).orElse(null);
+            }
+            
+            // Busca localização (se fornecida)
+            Localizacao localizacao = null;
+            if (localizacaoId != null) {
+                localizacao = localizacaoService.findById(localizacaoId).orElse(null);
+            }
+            
+            // Cria produto
             Produto produto = new Produto();
             produto.setNome(nome);
             produto.setDescricao((String) requestBody.get("descricao"));
             produto.setCodigo(codigo);
             produto.setNumeroSerie((String) requestBody.get("numeroSerie"));
             produto.setCategoria(categoria);
-            produto.setMarca((String) requestBody.get("marca"));
+            produto.setMarca(marca);
             produto.setModelo((String) requestBody.get("modelo"));
+            produto.setLocalizacao(localizacao);
             
+            // Quantidades
             Object qtdTotalObj = requestBody.get("quantidadeTotal");
             if (qtdTotalObj instanceof Integer) {
                 produto.setQuantidadeTotal((Integer) qtdTotalObj);
@@ -86,10 +111,11 @@ public class ProdutoController {
                 produto.setQuantidadeDisponivel(0);
             }
             
-            produto.setLocalizacao((String) requestBody.get("localizacao"));
+            // Outros campos
             produto.setEstadoConservacao((String) requestBody.get("estadoConservacao"));
             produto.setObservacoes((String) requestBody.get("observacoes"));
             
+            // Ativo (default true)
             Object ativoObj = requestBody.get("ativo");
             if (ativoObj instanceof Boolean) {
                 produto.setAtivo((Boolean) ativoObj);
@@ -97,7 +123,7 @@ public class ProdutoController {
                 produto.setAtivo(true);
             }
             
-            // CORRIGIDO: Usar salvarProduto() em vez de save()
+            // Salva produto
             produtoService.validarProduto(produto);
             Produto novoProduto = produtoService.salvarProduto(produto);
             
@@ -116,34 +142,44 @@ public class ProdutoController {
             @RequestBody Map<String, Object> requestBody) {
         try {
             System.out.println("=== ATUALIZANDO PRODUTO " + id + " ===");
+            System.out.println("Dados: " + requestBody);
             
-            Object categoriaIdObj = requestBody.get("categoriaId");
-            Long categoriaId = null;
-            
-            if (categoriaIdObj != null) {
-                if (categoriaIdObj instanceof Integer) {
-                    categoriaId = ((Integer) categoriaIdObj).longValue();
-                } else if (categoriaIdObj instanceof Long) {
-                    categoriaId = (Long) categoriaIdObj;
-                } else if (categoriaIdObj instanceof String) {
-                    try {
-                        categoriaId = Long.parseLong((String) categoriaIdObj);
-                    } catch (NumberFormatException e) {
-                        return ResponseEntity.badRequest().body(Map.of("erro", "categoriaId inválido"));
-                    }
-                }
-            }
-            
-            // CORRIGIDO: Usar buscarPorId() em vez de findById()
+            // Busca produto existente
             Produto produtoExistente = produtoService.buscarPorId(id)
                 .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado"));
             
-            if (categoriaId != null) {
-                Categoria categoria = categoriaService.findById(categoriaId)
-                    .orElseThrow(() -> new IllegalArgumentException("Categoria não encontrada"));
-                produtoExistente.setCategoria(categoria);
+            // Processa categoria
+            Object categoriaIdObj = requestBody.get("categoriaId");
+            if (categoriaIdObj != null) {
+                Long categoriaId = converterParaLong(categoriaIdObj, "categoriaId");
+                if (categoriaId != null) {
+                    Categoria categoria = categoriaService.findById(categoriaId)
+                        .orElseThrow(() -> new IllegalArgumentException("Categoria não encontrada"));
+                    produtoExistente.setCategoria(categoria);
+                }
             }
             
+            // Processa marca
+            Object marcaIdObj = requestBody.get("marcaId");
+            if (marcaIdObj != null) {
+                Long marcaId = converterParaLong(marcaIdObj, "marcaId");
+                if (marcaId != null) {
+                    Marca marca = marcaService.findById(marcaId).orElse(null);
+                    produtoExistente.setMarca(marca);
+                }
+            }
+            
+            // Processa localização
+            Object localizacaoIdObj = requestBody.get("localizacaoId");
+            if (localizacaoIdObj != null) {
+                Long localizacaoId = converterParaLong(localizacaoIdObj, "localizacaoId");
+                if (localizacaoId != null) {
+                    Localizacao localizacao = localizacaoService.findById(localizacaoId).orElse(null);
+                    produtoExistente.setLocalizacao(localizacao);
+                }
+            }
+            
+            // Atualiza outros campos
             if (requestBody.containsKey("nome")) {
                 produtoExistente.setNome((String) requestBody.get("nome"));
             }
@@ -156,9 +192,6 @@ public class ProdutoController {
             if (requestBody.containsKey("numeroSerie")) {
                 produtoExistente.setNumeroSerie((String) requestBody.get("numeroSerie"));
             }
-            if (requestBody.containsKey("marca")) {
-                produtoExistente.setMarca((String) requestBody.get("marca"));
-            }
             if (requestBody.containsKey("modelo")) {
                 produtoExistente.setModelo((String) requestBody.get("modelo"));
             }
@@ -167,13 +200,11 @@ public class ProdutoController {
                 if (qtdObj instanceof Integer) {
                     int novaQuantidade = (Integer) qtdObj;
                     produtoExistente.setQuantidadeTotal(novaQuantidade);
+                    // Ajusta disponível se necessário
                     if (novaQuantidade < produtoExistente.getQuantidadeDisponivel()) {
                         produtoExistente.setQuantidadeDisponivel(novaQuantidade);
                     }
                 }
-            }
-            if (requestBody.containsKey("localizacao")) {
-                produtoExistente.setLocalizacao((String) requestBody.get("localizacao"));
             }
             if (requestBody.containsKey("estadoConservacao")) {
                 produtoExistente.setEstadoConservacao((String) requestBody.get("estadoConservacao"));
@@ -188,7 +219,7 @@ public class ProdutoController {
                 }
             }
             
-            // CORRIGIDO: Usar atualizarProduto() em vez de save()
+            // Atualiza produto
             Produto produtoAtualizado = produtoService.atualizarProduto(id, produtoExistente);
             return ResponseEntity.ok(produtoAtualizado);
             
@@ -201,7 +232,6 @@ public class ProdutoController {
     
     @GetMapping("/{id}")
     public ResponseEntity<Produto> buscarPorId(@PathVariable Long id) {
-        // CORRIGIDO: Usar buscarPorId()
         Optional<Produto> produtoOpt = produtoService.buscarPorId(id);
         return produtoOpt.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -223,7 +253,6 @@ public class ProdutoController {
     
     @GetMapping
     public ResponseEntity<List<Produto>> listarTodos() {
-        // CORRIGIDO: Usar listarTodos() em vez de findAll()
         List<Produto> produtos = produtoService.listarTodos();
         return ResponseEntity.ok(produtos);
     }
@@ -301,20 +330,40 @@ public class ProdutoController {
     
     // ============ CONSULTAS POR ATRIBUTOS ============
     
-    @GetMapping("/categoria/{nomeCategoria}")
-    public ResponseEntity<List<Produto>> buscarPorCategoria(@PathVariable String nomeCategoria) {
+    @GetMapping("/categoria/{categoriaId}")
+    public ResponseEntity<List<Produto>> buscarPorCategoria(@PathVariable Long categoriaId) {
         try {
-            List<Produto> produtos = produtoService.buscarPorCategoria(nomeCategoria);
-            return ResponseEntity.ok(produtos);
+            // Busca o nome da categoria pelo ID
+            String nomeCategoria = categoriaService.findById(categoriaId)
+                .map(Categoria::getNome)
+                .orElse(null);
+            
+            if (nomeCategoria != null) {
+                List<Produto> produtos = produtoService.buscarPorCategoria(nomeCategoria);
+                return ResponseEntity.ok(produtos);
+            }
+            return ResponseEntity.ok(List.of());
         } catch (Exception e) {
             return ResponseEntity.ok(List.of());
         }
     }
     
-    @GetMapping("/marca/{marca}")
-    public ResponseEntity<List<Produto>> buscarPorMarca(@PathVariable String marca) {
-        List<Produto> produtos = produtoService.buscarPorMarca(marca);
-        return ResponseEntity.ok(produtos);
+    @GetMapping("/marca/{marcaId}")
+    public ResponseEntity<List<Produto>> buscarPorMarca(@PathVariable Long marcaId) {
+        try {
+            // Busca o nome da marca pelo ID
+            String nomeMarca = marcaService.findById(marcaId)
+                .map(Marca::getNome)
+                .orElse(null);
+            
+            if (nomeMarca != null) {
+                List<Produto> produtos = produtoService.buscarPorMarca(nomeMarca);
+                return ResponseEntity.ok(produtos);
+            }
+            return ResponseEntity.ok(List.of());
+        } catch (Exception e) {
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/modelo/{modelo}")
@@ -327,10 +376,22 @@ public class ProdutoController {
         }
     }
     
-    @GetMapping("/localizacao/{localizacao}")
-    public ResponseEntity<List<Produto>> buscarPorLocalizacao(@PathVariable String localizacao) {
-        List<Produto> produtos = produtoService.buscarPorLocalizacao(localizacao);
-        return ResponseEntity.ok(produtos);
+    @GetMapping("/localizacao/{localizacaoId}")
+    public ResponseEntity<List<Produto>> buscarPorLocalizacao(@PathVariable Long localizacaoId) {
+        try {
+            // Busca o nome da localização pelo ID
+            String nomeLocalizacao = localizacaoService.findById(localizacaoId)
+                .map(Localizacao::getNome)
+                .orElse(null);
+            
+            if (nomeLocalizacao != null) {
+                List<Produto> produtos = produtoService.buscarPorLocalizacao(nomeLocalizacao);
+                return ResponseEntity.ok(produtos);
+            }
+            return ResponseEntity.ok(List.of());
+        } catch (Exception e) {
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     @GetMapping("/estado/{estadoConservacao}")
@@ -349,11 +410,30 @@ public class ProdutoController {
     
     @GetMapping("/filtros")
     public ResponseEntity<List<Produto>> buscarPorFiltros(
-            @RequestParam(required = false) String categoria,
-            @RequestParam(required = false) String marca,
+            @RequestParam(required = false) Long categoriaId,
+            @RequestParam(required = false) Long marcaId,
             @RequestParam(required = false) String estadoConservacao) {
-        List<Produto> produtos = produtoService.buscarPorFiltros(categoria, marca, estadoConservacao);
-        return ResponseEntity.ok(produtos);
+        try {
+            // Converte IDs para nomes
+            String categoriaNome = null;
+            if (categoriaId != null) {
+                categoriaNome = categoriaService.findById(categoriaId)
+                    .map(Categoria::getNome)
+                    .orElse(null);
+            }
+            
+            String marcaNome = null;
+            if (marcaId != null) {
+                marcaNome = marcaService.findById(marcaId)
+                    .map(Marca::getNome)
+                    .orElse(null);
+            }
+            
+            List<Produto> produtos = produtoService.buscarPorFiltros(categoriaNome, marcaNome, estadoConservacao);
+            return ResponseEntity.ok(produtos);
+        } catch (Exception e) {
+            return ResponseEntity.ok(List.of());
+        }
     }
     
     // ============ RELATÓRIOS E ESTATÍSTICAS ============
@@ -395,5 +475,26 @@ public class ProdutoController {
     public ResponseEntity<Boolean> verificarNumeroSerieExistente(@PathVariable String numeroSerie) {
         boolean existe = produtoService.existeNumeroSerie(numeroSerie);
         return ResponseEntity.ok(existe);
+    }
+    
+    // ============ MÉTODOS AUXILIARES ============
+    
+    private Long converterParaLong(Object obj, String campo) {
+        if (obj == null) return null;
+        
+        try {
+            if (obj instanceof Integer) {
+                return ((Integer) obj).longValue();
+            } else if (obj instanceof Long) {
+                return (Long) obj;
+            } else if (obj instanceof String) {
+                return Long.parseLong((String) obj);
+            } else if (obj instanceof Double) {
+                return ((Double) obj).longValue();
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Erro ao converter " + campo + ": " + obj + " (" + obj.getClass().getSimpleName() + ")");
+        }
+        return null;
     }
 }

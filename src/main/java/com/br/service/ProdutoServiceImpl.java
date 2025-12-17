@@ -218,12 +218,7 @@ public class ProdutoServiceImpl implements ProdutoService {
     public List<Produto> buscarPorFiltros(String categoria, String marca, String estadoConservacao) {
         return produtoRepository.findProdutosPorFiltros(categoria, marca, estadoConservacao);
     }
-    
-    // ============ CONTROLE DE GARANTIA ============
-    
-    
-    
-    
+     
     // ============ RELATÓRIOS E ESTATÍSTICAS ============
     
     @Override
